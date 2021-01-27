@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2020 PrimeTek
+ * Copyright (c) 2009-2021 PrimeTek
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -109,13 +109,13 @@ public class DataViewRenderer extends DataRenderer {
 
         encodeHeader(context, dataview);
 
-        if (hasPaginator && !paginatorPosition.equalsIgnoreCase("bottom")) {
+        if (hasPaginator && !"bottom".equalsIgnoreCase(paginatorPosition)) {
             encodePaginatorMarkup(context, dataview, "top");
         }
 
         encodeContent(context, dataview);
 
-        if (hasPaginator && !paginatorPosition.equalsIgnoreCase("top")) {
+        if (hasPaginator && !"top".equalsIgnoreCase(paginatorPosition)) {
             encodePaginatorMarkup(context, dataview, "bottom");
         }
 
@@ -223,11 +223,23 @@ public class DataViewRenderer extends DataRenderer {
     protected void encodeLayout(FacesContext context, DataView dataview) throws IOException {
         String layout = dataview.getLayout();
 
-        if (layout.contains("grid")) {
-            encodeGridLayout(context, dataview);
+        if (dataview.getRowCount() == 0) {
+            ResponseWriter writer = context.getResponseWriter();
+            UIComponent emptyFacet = dataview.getFacet("emptyMessage");
+            if (ComponentUtils.shouldRenderFacet(emptyFacet)) {
+                emptyFacet.encodeAll(context);
+            }
+            else {
+                writer.writeText(dataview.getEmptyMessage(), "emptyMessage");
+            }
         }
         else {
-            encodeListLayout(context, dataview);
+            if (layout.contains("grid")) {
+                encodeGridLayout(context, dataview);
+            }
+            else {
+                encodeListLayout(context, dataview);
+            }
         }
     }
 
@@ -305,7 +317,7 @@ public class DataViewRenderer extends DataRenderer {
                 dataview.setRowIndex(i);
 
                 if (!dataview.isRowAvailable()) {
-                    return;
+                    break;
                 }
 
                 writer.startElement("li", null);

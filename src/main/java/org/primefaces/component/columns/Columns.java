@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2020 PrimeTek
+ * Copyright (c) 2009-2021 PrimeTek
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,17 +28,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.faces.component.UIComponent;
-import javax.faces.component.UINamingContainer;
 import javax.faces.context.FacesContext;
 
 import org.primefaces.component.api.DynamicColumn;
 import org.primefaces.component.celleditor.CellEditor;
+import org.primefaces.util.LangUtils;
 
 public class Columns extends ColumnsBase {
 
     public static final String COMPONENT_TYPE = "org.primefaces.component.Columns";
 
-    private CellEditor cellEditor = null;
+    private CellEditor cellEditor;
     private List<DynamicColumn> dynamicColumns;
 
     @Override
@@ -74,14 +74,29 @@ public class Columns extends ColumnsBase {
 
     @Override
     public String getColumnKey() {
-        // dont use getClientId() as it could contain the rowIndex
-        FacesContext context = getFacesContext();
-        return getParent().getClientId(context) + UINamingContainer.getSeparatorChar(context) + getId();
+        return getClientId();
+    }
+
+    @Override
+    public String getColumnKey(UIComponent parent, String rowIndex) {
+        return getColumnKey().replace(parent.getId() + ":" + rowIndex + ":", parent.getId() + ":");
     }
 
     @Override
     public void renderChildren(FacesContext context) throws IOException {
         encodeChildren(context);
+    }
+
+    @Override
+    public String getHeaderText() {
+        String headerText = super.getHeaderText();
+        if (headerText == null) {
+            String field = getField();
+            if (LangUtils.isNotBlank(field)) {
+                headerText = LangUtils.toCapitalCase(field);
+            }
+        }
+        return headerText;
     }
 
     public List<DynamicColumn> getDynamicColumns() {

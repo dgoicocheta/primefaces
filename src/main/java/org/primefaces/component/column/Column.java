@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2020 PrimeTek
+ * Copyright (c) 2009-2021 PrimeTek
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,10 +27,10 @@ import java.io.IOException;
 import java.util.List;
 
 import javax.faces.component.UIComponent;
-import javax.faces.component.UINamingContainer;
 import javax.faces.context.FacesContext;
 
 import org.primefaces.component.celleditor.CellEditor;
+import org.primefaces.util.LangUtils;
 
 public class Column extends ColumnBase {
 
@@ -61,9 +61,12 @@ public class Column extends ColumnBase {
 
     @Override
     public String getColumnKey() {
-        // dont use getClientId() as it could contain the rowIndex
-        FacesContext context = getFacesContext();
-        return getParent().getClientId(context) + UINamingContainer.getSeparatorChar(context) + getId();
+        return getClientId();
+    }
+
+    @Override
+    public String getColumnKey(UIComponent parent, String rowIndex) {
+        return getColumnKey().replace(parent.getId() + ":" + rowIndex + ":", parent.getId() + ":");
     }
 
     @Override
@@ -85,5 +88,17 @@ public class Column extends ColumnBase {
                 child.encodeAll(context);
             }
         }
+    }
+
+    @Override
+    public String getHeaderText() {
+        String headerText = super.getHeaderText();
+        if (headerText == null) {
+            String field = getField();
+            if (LangUtils.isNotBlank(field)) {
+                headerText = LangUtils.toCapitalCase(field);
+            }
+        }
+        return headerText;
     }
 }

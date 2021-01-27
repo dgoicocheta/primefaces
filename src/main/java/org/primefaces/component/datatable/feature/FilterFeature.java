@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2020 PrimeTek
+ * Copyright (c) 2009-2021 PrimeTek
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@ import javax.faces.context.FacesContext;
 import javax.faces.event.PhaseId;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FilterFeature implements DataTableFeature {
 
@@ -84,7 +85,7 @@ public class FilterFeature implements DataTableFeature {
         Map<String, String> params = context.getExternalContext().getRequestParameterMap();
         String clientId = table.getClientId(context);
         String rppValue = params.get(clientId + "_rppDD");
-        if (rppValue != null && !rppValue.equals("*")) {
+        if (rppValue != null && !"*".equals(rppValue)) {
             table.setRows(Integer.parseInt(rppValue));
         }
 
@@ -138,27 +139,28 @@ public class FilterFeature implements DataTableFeature {
         Map<String, FilterMeta> filterBy = table.getFilterByAsMap();
 
         table.setValue(null); // reset value (instead of filtering on already filtered value)
+        AtomicBoolean matching = new AtomicBoolean();
 
         for (int i = 0; i < table.getRowCount(); i++) {
             table.setRowIndex(i);
-            boolean matching = true;
+            matching.set(true);
 
-            for (FilterMeta filter : filterBy.values()) {
-                if (!filter.isActive()) {
-                    continue;
+            final int rowIndex = i;
+            table.forEachColumn(column -> {
+                FilterMeta filter = filterBy.get(column.getColumnKey(table, rowIndex));
+                if (filter == null || !filter.isActive()) {
+                    return true;
                 }
 
                 FilterConstraint constraint = filter.getConstraint();
                 Object filterValue = filter.getFilterValue();
                 Object columnValue = filter.isGlobalFilter() ? table.getRowData() : filter.getLocalValue(elContext);
 
-                matching = constraint.isMatching(context, columnValue, filterValue, filterLocale);
-                if (!matching) {
-                    break;
-                }
-            }
+                matching.set(constraint.isMatching(context, columnValue, filterValue, filterLocale));
+                return matching.get();
+            });
 
-            if (matching) {
+            if (matching.get()) {
                 filtered.add(table.getRowData());
             }
         }
@@ -171,6 +173,6 @@ public class FilterFeature implements DataTableFeature {
         //save filtered data
         table.updateFilteredValue(context, filtered);
         table.setValue(filtered);
-        table.setRowIndex(-1);  //reset datamodel
+        table.setRowIndex(-1); //reset datamodel
     }
 }

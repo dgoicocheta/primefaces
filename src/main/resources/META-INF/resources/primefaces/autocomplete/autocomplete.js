@@ -15,6 +15,9 @@
  * @typedef {"server" | "client" | "hybrid"} PrimeFaces.widget.AutoComplete.QueryMode Specifies whether filter requests
  * are evaluated by the client's browser or whether they are sent to the server.
  * 
+ * @typedef PrimeFaces.widget.AutoComplete.OnChangeCallback Client side callback to invoke when value changes.
+ * @param {JQuery} PrimeFaces.widget.AutoComplete.OnChangeCallback.input (Input) element on which the change occurred.
+ * 
  * @prop {boolean} active Whether the autocomplete is active.
  * @prop {Record<string, string>} [cache] The cache for the results of an autocomplete search.
  * @prop {number} [cacheTimeout] The set-interval timer ID for the cache timeout. 
@@ -66,6 +69,8 @@
  * @prop {number} cfg.minLength Minimum length before an autocomplete search is triggered.
  * @prop {boolean} cfg.multiple When `true`, enables multiple selection.
  * @prop {string} cfg.myPos Defines which position on the element being positioned to align with the target element.
+ * @prop {PrimeFaces.widget.AutoComplete.OnChangeCallback} cfg.onChange Client side callback to invoke when value
+ * changes.
  * @prop {PrimeFaces.widget.AutoComplete.QueryEvent} cfg.queryEvent Event to initiate the the autocomplete search.
  * @prop {PrimeFaces.widget.AutoComplete.QueryMode} cfg.queryMode Specifies query mode, whether autocomplete contacts
  * the server.
@@ -73,8 +78,9 @@
  * @prop {number} cfg.selectLimit Limits the number of simultaneously selected items. Default is unlimited.
  * @prop {number} cfg.scrollHeight Height of the container with the suggestion items.
  * @prop {boolean} cfg.unique Ensures uniqueness of the selected items.
- * @prop {string} cfg.completeEndpoint REST-Endpoint for fetching autocomplete-suggestions. (instead of completeMethod)
- * @prop {string} cfg.moreText The text shown in panel when the suggested list is greater than maxResults.
+ * @prop {string} cfg.completeEndpoint REST endpoint for fetching autocomplete suggestions. Takes precedence over the
+ * bean command specified via `completeMethod` on the component. 
+ * @prop {string} cfg.moreText The text shown in the panel when the number of suggestions is greater than `maxResults`.
  */
 PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
 
@@ -110,9 +116,6 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
         this.touchToDropdownButton = false;
         this.isTabPressed = false;
         this.isDynamicLoaded = false;
-        
-        this.cfg.onChange = this.input.prop('onchange');
-        this.input.prop('onchange', null).off('change');
 
         if(this.cfg.cache) {
             this.initCache();
@@ -247,7 +250,7 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
                 $this.input.css('display', 'inline');
                 $this.enableDropdown();
             }
-            $this.removeItem(event, $(this).parent());
+            $this.removeItem($(this).parent());
         });
     },
 
@@ -338,6 +341,19 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
      */
     bindKeyEvents: function() {
         var $this = this;
+
+        // GitHub #6711 use DOM if non-CSP and JQ event if CSP
+        var originalOnchange = this.input.prop('onchange');
+        if (!originalOnchange) {
+            var events = $._data(this.input[0], "events");
+            if(events.change) {
+                originalOnchange = events.change[0].handler;
+            }
+        }
+        this.cfg.onChange = originalOnchange;
+        if (originalOnchange) {
+            this.input.prop('onchange', null).off('change');
+        }
 
         if(this.cfg.queryEvent !== 'enter') {
             this.input.on('input propertychange', function(e) {
@@ -464,12 +480,19 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
                     break;
 
                     case keyCode.ENTER:
+                        var itemValue = $(this).val();
                         if($this.cfg.queryEvent === 'enter' || ($this.timeout > 0) || $this.querying) {
                             e.preventDefault();
                         }
 
                         if($this.cfg.queryEvent !== 'enter') {
-                            $this.isValid($(this).val(), true);
+                            $this.isValid(itemValue, true);
+                        }
+
+                        if($this.cfg.multiple && itemValue) {
+                            $this.addItem(itemValue);
+                            e.preventDefault();
+                            e.stopPropagation();
                         }
                     break;
 
@@ -479,7 +502,7 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
                             if (e.metaKey||e.ctrlKey||e.shiftKey) {
                                 $this.removeAllItems();
                             } else {
-                                $this.removeItem(e, $(this).parent().prev());
+                                $this.removeItem($(this).parent().prev());
                             }
 
                             e.preventDefault();
@@ -508,7 +531,8 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
         var $this = this;
 
         //visuals and click handler for items
-        this.items.on('mouseover', function() {
+        this.items.off('click.autocomplete mousedown.autocomplete mouseover.autocomplete')
+        .on('mouseover.autocomplete', function() {
             var item = $(this);
 
             if(!item.hasClass('ui-state-highlight')) {
@@ -520,7 +544,7 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
                 }
             }
         })
-        .on('click', function(event) {
+        .on('click.autocomplete', function(event) {
             var item = $(this),
             isMoreText = item.hasClass('ui-autocomplete-moretext');
 
@@ -529,66 +553,12 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
                 $this.invokeMoreTextBehavior();
             }
             else {
-                var itemValue = item.attr('data-item-value');
-
-                if($this.cfg.multiple) {
-                    var found = false;
-                    if($this.cfg.unique) {
-                        found = $this.multiItemContainer.children("li[data-token-value='" + $.escapeSelector(itemValue) + "']").length != 0;
-                    }
-
-                    if(!found) {
-                        var itemStyleClass = item.attr('data-item-class');
-                        var itemDisplayMarkup = '<li data-token-value="' + PrimeFaces.escapeHTML(itemValue);
-                        itemDisplayMarkup += '"class="ui-autocomplete-token ui-state-active ui-corner-all ui-helper-hidden';
-                        itemDisplayMarkup += (itemStyleClass === '' ? '' : ' '+itemStyleClass) + '">';
-                        itemDisplayMarkup += '<span class="ui-autocomplete-token-icon ui-icon ui-icon-close"></span>';
-                        itemDisplayMarkup += '<span class="ui-autocomplete-token-label">' + PrimeFaces.escapeHTML(item.attr('data-item-label')) + '</span></li>';
-
-                        $this.inputContainer.before(itemDisplayMarkup);
-                        $this.multiItemContainer.children('.ui-helper-hidden').fadeIn();
-                        $this.input.val('');
-                        $this.input.removeAttr('placeholder');
-
-                        $this.hinput.append('<option value="' + PrimeFaces.escapeHTML(itemValue) + '" selected="selected"></option>');
-                        if($this.multiItemContainer.children('li.ui-autocomplete-token').length >= $this.cfg.selectLimit) {
-                            $this.input.css('display', 'none').trigger("blur");
-                            $this.disableDropdown();
-                        }
-
-                        $this.invokeItemSelectBehavior(event, itemValue);
-                    }
-                }
-                else {
-                    $this.input.val(item.attr('data-item-label'));
-
-                    this.currentText = $this.input.val();
-                    this.previousText = $this.input.val();
-
-                    if($this.cfg.pojo) {
-                        $this.hinput.val(itemValue);
-                    }
-
-                    if(PrimeFaces.env.isLtIE(10)) {
-                        var length = $this.input.val().length;
-                        $this.input.setSelection(length,length);
-                    }
-
-                    $this.invokeItemSelectBehavior(event, itemValue);
-                }
-
-                if ($this.cfg.onChange) {
-                    $this.cfg.onChange.call(this);
-                }
-
-                if (!$this.isTabPressed) {
-                    $this.input.trigger('focus');
-                }
+                $this.addItem(item);
             }
 
             $this.hide();
         })
-        .on('mousedown', function() {
+        .on('mousedown.autocomplete', function() {
             $this.preventInputChangeEvent = true;
             $this.checkMatchedItem = false;
         });
@@ -606,7 +576,7 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
         });
 
         if(PrimeFaces.env.browser.mobile) {
-            this.items.on('touchstart', function() {
+            this.items.on('touchstart.autocomplete', function() {
                 if(!$this.touchToDropdownButton) {
                     $this.itemClick = true;
                 }
@@ -617,7 +587,7 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
     /**
      * Callback for when a key event occurred.
      * @private
-     * @param {JQuery.Event} e Key event that occurred.
+     * @param {JQuery.TriggeredEvent} e Key event that occurred.
      */
     processKeyEvent: function(e) {
         var $this = this;
@@ -653,10 +623,15 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
             }
 
             var delay = $this.cfg.delay;
-            $this.timeout = setTimeout(function() {
-                $this.timeout = null;
-                $this.search(value);
-            }, delay);
+            if(delay && delay > 0) {
+                $this.timeout = setTimeout(function() {
+                    $this.timeout = null;
+                    $this.search(value);
+                }, delay);
+            }
+            else {
+                 $this.search(value);
+            } 
         }
         else if(value.length === 0) {
             if($this.timeout) {
@@ -975,10 +950,9 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
     /**
      * Invokes the appropriate behavior for when a suggestion item was selected.
      * @private
-     * @param {JQuery.Event} event The event that occurred.
      * @param {string} itemValue Value of the selected item.
      */
-    invokeItemSelectBehavior: function(event, itemValue) {
+    invokeItemSelectBehavior: function(itemValue) {
         if(this.hasBehavior('itemSelect')) {
             var ext = {
                 params : [
@@ -993,10 +967,9 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
     /**
      * Invokes the appropriate behavior when a suggestion item was unselected.
      * @private
-     * @param {JQuery.Event} event The event that occurred.
      * @param {string} itemValue Value of the unselected item.
      */
-    invokeItemUnselectBehavior: function(event, itemValue) {
+    invokeItemUnselectBehavior: function(itemValue) {
         if(this.hasBehavior('itemUnselect')) {
             var ext = {
                 params : [
@@ -1041,26 +1014,124 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
     },
 
     /**
-     * Removes the given suggestion item.
-     * @private
-     * @param {JQuery.Event} event The event that occurred.
-     * @param {JQuery} item Suggestion item to remove.
+     * Add the given suggestion item.
+     * @param {JQuery | string} item Suggestion item to add.
      */
-    removeItem: function(event, item) {
-        var itemValue = item.attr('data-token-value'),
-        itemIndex = this.multiItemContainer.children('li.ui-autocomplete-token').index(item),
-        $this = this;
+    addItem: function(item) {
+        var $this = this,
+            itemValue = '',
+            itemStyleClass = '',
+            itemLabel = '';
+ 
+        if($this.input.hasClass('ui-state-disabled')) {
+            return;
+        }
+
+        if(typeof item === 'string' || item instanceof String) {
+            itemValue = item;
+            itemLabel = item;
+        }
+        else {
+            itemValue = item.attr('data-item-value');
+            itemLabel = item.attr('data-item-label');
+            itemStyleClass = item.attr('data-item-class');
+        }
+
+        if (!itemValue) {
+            return;
+        }
+
+        if ($this.cfg.multiple) {
+            var found = false;
+            if ($this.cfg.unique) {
+                found = $this.multiItemContainer.children("li[data-token-value='" + $.escapeSelector(itemValue) + "']").length != 0;
+            }
+
+            if (!found) {
+                if ($this.multiItemContainer.children('li.ui-autocomplete-token').length >= $this.cfg.selectLimit) {
+                   return;
+                }
+                var itemDisplayMarkup = '<li data-token-value="' + PrimeFaces.escapeHTML(itemValue);
+                itemDisplayMarkup += '"class="ui-autocomplete-token ui-state-active ui-corner-all ui-helper-hidden';
+                itemDisplayMarkup += (itemStyleClass === '' ? '' : ' ' + itemStyleClass) + '">';
+                itemDisplayMarkup += '<span class="ui-autocomplete-token-icon ui-icon ui-icon-close"></span>';
+                itemDisplayMarkup += '<span class="ui-autocomplete-token-label">' + PrimeFaces.escapeHTML(itemLabel) + '</span></li>';
+
+                $this.inputContainer.before(itemDisplayMarkup);
+                $this.multiItemContainer.children('.ui-helper-hidden').fadeIn();
+                $this.input.val('');
+                $this.input.removeAttr('placeholder');
+
+                $this.hinput.append('<option value="' + PrimeFaces.escapeHTML(itemValue) + '" selected="selected"></option>');
+                if ($this.multiItemContainer.children('li.ui-autocomplete-token').length >= $this.cfg.selectLimit) {
+                    $this.input.css('display', 'none').trigger("blur");
+                    $this.disableDropdown();
+                }
+
+                $this.invokeItemSelectBehavior(itemValue);
+            }
+        } else {
+            $this.input.val(item.attr('data-item-label'));
+
+            this.currentText = $this.input.val();
+            this.previousText = $this.input.val();
+
+            if ($this.cfg.pojo) {
+                $this.hinput.val(itemValue);
+            }
+
+            if (PrimeFaces.env.isLtIE(10)) {
+                var length = $this.input.val().length;
+                $this.input.setSelection(length, length);
+            }
+
+            $this.invokeItemSelectBehavior(itemValue);
+        }
+
+        if ($this.cfg.onChange) {
+            $this.cfg.onChange.call(this);
+        }
+
+        if (!$this.isTabPressed) {
+            $this.input.trigger('focus');
+        }
+    },
+
+    /**
+     * Removes the given suggestion item.
+     * @param {JQuery | string} item Suggestion item to remove.
+     */
+    removeItem: function(item) {
+        var $this = this,
+            itemValue = '';
+        if($this.input.hasClass('ui-state-disabled')) {
+            return;
+        }
+
+        if(typeof item === 'string' || item instanceof String) {
+            itemValue = item;
+        }
+        else {
+            itemValue = item.attr('data-token-value');
+        }
+
+        var foundItem = this.multiItemContainer.children("li.ui-autocomplete-token[data-token-value='"+itemValue+"']");
+        if(!foundItem.length) {
+            return;
+        }
+        var itemIndex = foundItem.index();
+        if(!itemValue || itemIndex === -1) {
+            return;
+        }
 
         //remove from options
         this.hinput.children('option').eq(itemIndex).remove();
 
         //remove from items
-        item.fadeOut('fast', function() {
+        foundItem.fadeOut('fast', function() {
             var token = $(this);
-
             token.remove();
-
-            $this.invokeItemUnselectBehavior(event, itemValue);
+            $this.invokeItemUnselectBehavior(itemValue);
         });
         
         // if empty return placeholder
@@ -1076,7 +1147,7 @@ PrimeFaces.widget.AutoComplete = PrimeFaces.widget.BaseWidget.extend({
         var $this = this;
         if (this.cfg.multiple && !this.input.val().length) {
             this.multiItemContainer.find('.ui-autocomplete-token').each(function( index ) {
-                $this.removeItem(null, $(this));
+                $this.removeItem($(this));
             });
         }
     },

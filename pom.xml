@@ -5,7 +5,7 @@
     <groupId>org.primefaces</groupId>
     <artifactId>primefaces</artifactId>
     <packaging>jar</packaging>
-    <version>9.0-SNAPSHOT</version>
+    <version>10.0.0-SNAPSHOT</version>
 
     <name>PrimeFaces</name>
     <url>https://www.primefaces.org</url>
@@ -104,14 +104,70 @@
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi</artifactId>
-            <version>4.1.2</version>
+            <version>5.0.0</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-collections4</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-math3</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-codec</groupId>
+                    <artifactId>commons-codec</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.zaxxer</groupId>
+                    <artifactId>SparseBitSet</artifactId>
+                </exclusion>
+                <exclusion>
+                	<groupId>org.slf4j</groupId>
+                	<artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                	<groupId>org.slf4j</groupId>
+                	<artifactId>jcl-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
-            <version>4.1.2</version>
+            <version>5.0.0</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-compress</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.github.virtuald</groupId>
+                    <artifactId>curvesapi</artifactId>
+                </exclusion>
+                <exclusion>
+                	<groupId>org.apache.xmlgraphics</groupId>
+                	<artifactId>batik-all</artifactId>
+                </exclusion>
+                <exclusion>
+                	<groupId>org.apache.santuario</groupId>
+                	<artifactId>xmlsec</artifactId>
+                </exclusion>
+                <exclusion>
+                	<groupId>de.rototor.pdfbox</groupId>
+                	<artifactId>graphics2d</artifactId>
+                </exclusion>
+                <exclusion>
+                	<groupId>org.bouncycastle</groupId>
+                	<artifactId>bcpkix-jdk15on</artifactId>
+                </exclusion>
+                <exclusion>
+                	<groupId>org.bouncycastle</groupId>
+                	<artifactId>bcprov-jdk15on</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.github.librepdf</groupId>
@@ -134,6 +190,12 @@
             <artifactId>rome</artifactId>
             <version>1.13.0</version>
             <scope>provided</scope>
+            <exclusions>
+            	<exclusion>
+            		<groupId>org.slf4j</groupId>
+            		<artifactId>slf4j-api</artifactId>
+            	</exclusion>
+            </exclusions>
         </dependency>
 
         <!-- JAXB for JDK11+-->
@@ -222,12 +284,24 @@
             <artifactId>ehcache</artifactId>
             <version>2.7.4</version>
             <scope>provided</scope>
+            <exclusions>
+            	<exclusion>
+            		<groupId>org.slf4j</groupId>
+            		<artifactId>slf4j-api</artifactId>
+            	</exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.ehcache</groupId>
             <artifactId>ehcache</artifactId>
             <version>3.7.1</version>
             <scope>provided</scope>
+            <exclusions>
+            	<exclusion>
+            		<groupId>org.slf4j</groupId>
+            		<artifactId>slf4j-api</artifactId>
+            	</exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -278,8 +352,8 @@
                     <version>1.9.1</version>
                     <configuration>
                         <installDirectory>${project.build.directory}</installDirectory>
-                        <nodeVersion>v13.13.0</nodeVersion>
-                        <npmVersion>6.14.4</npmVersion>
+                        <nodeVersion>v15.6.0</nodeVersion>
+                        <npmVersion>7.4.0</npmVersion>
                         <workingDirectory>${basedir}/src/main/type-definitions</workingDirectory>
                     </configuration>
                     <executions>
@@ -490,7 +564,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.1.0</version>
+                <version>3.1.1</version>
                 <configuration>
                     <consoleOutput>true</consoleOutput>
                     <configLocation>${project.basedir}/src/conf/checkstyle.xml</configLocation>
@@ -511,7 +585,7 @@
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>8.29</version>
+                        <version>8.38</version>
                     </dependency>
                 </dependencies>
             </plugin>
@@ -534,7 +608,7 @@
             <plugin>
                 <groupId>com.mycila</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>4.0.rc1</version>
+                <version>4.0.rc2</version>
                 <configuration>
                     <header>src/conf/header.txt</header>
                     <includes>
@@ -653,6 +727,15 @@
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/jquery/jquery.ui.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/jquery/jquery.ui.timepicker.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/jquery/jquery.ui.pfextensions.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/avatar/avatar.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/avatargroup/avatargroup.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/badge/badge.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/card/card.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/chip/chip.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/chronoline/chronoline.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/confirmpopup/confirmpopup.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/tag/tag.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/skeleton/skeleton.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/accordion/accordion.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/autocomplete/autocomplete.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/blockui/blockui.css</include>
@@ -664,6 +747,7 @@
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/datascroller/datascroller.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/datatable/datatable.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/dialog/dialog.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/divider/divider.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/fieldset/fieldset.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/forms/forms.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/forms/inputgroup.css</include>
@@ -683,7 +767,9 @@
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/picklist/picklist.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/progressbar/progressbar.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/rating/rating.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/scrolltop/scrolltop.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/spinner/spinner.css</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/splitter/splitter.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/tabview/tabview.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/tagcloud/tagcloud.css</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/toolbar/toolbar.css</include>
@@ -730,6 +816,7 @@
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/blockui/blockui.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/calendar/calendar.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/carousel/carousel.js</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/confirmpopup/confirmpopup.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/columntoggler/columntoggler.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/dashboard/dashboard.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/datagrid/datagrid.js</include>
@@ -749,6 +836,7 @@
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/forms/forms.selectlistbox.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/forms/forms.selectonelistbox.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/forms/forms.selectmanymenu.js</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/forms/forms.cascadeselect.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/forms/forms.commandbutton.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/forms/forms.button.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/forms/forms.linkbutton.js</include>
@@ -787,6 +875,7 @@
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/resizable/resizable.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/slider/slider.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/spinner/spinner.js</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/splitter/splitter.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/spotlight/spotlight.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/sticky/sticky.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/tabview/tabview.js</include>
@@ -798,7 +887,9 @@
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/treetable/treetable.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/wizard/wizard.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/tristatecheckbox/tristatecheckbox.js</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/chip/chip.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/chips/chips.js</include>
+                                <include>${project.build.directory}/classes/META-INF/resources/primefaces/scrolltop/scrolltop.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/sidebar/sidebar.js</include>
                                 <include>${project.build.directory}/classes/META-INF/resources/primefaces/dataview/dataview.js</include>
                             </includes>
@@ -1254,7 +1345,8 @@
                 </plugins>
             </build>
         </profile>
-        <!-- Generates the JavaScript Api docs in the target directory -->
+        <!-- Generates the JavaScript Api docs in the target directory, to check whether the docs compile -->
+        <!-- This DOES NOT update the docs in docs/jsdoc, use the profile "jsdoc-update" for that (see below) -->
         <!-- Use "-Djsdoc.skip.typedoc=true" if you only want to check and lint the declarations file -->
         <profile>
             <id>jsdoc</id>
@@ -1273,6 +1365,29 @@
                                 <configuration>
                                     <arguments>run generate-d-ts -- --packagejson src/main/type-definitions/package.json --declarationoutputdir target/type-declaration/ --typedocoutputdir target/type-declaration/jsdocs --skiptypedocgenerate ${jsdoc.skip.typedoc}</arguments>
                                 </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- Updates the JavaScript API docs in the docs/jsdocs directory -->
+        <!-- Check the file and upload to github once done! -->
+        <!-- The docs are also updated automatically when you specify the "release" profile -->
+        <!-- Use this "jsdoc-update" profile when you want to update the docs without release -->
+        <profile>
+            <id>jsdoc-update</id>
+            <properties>
+                <jsdoc.skip.typedoc>false</jsdoc.skip.typedoc>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.eirslett</groupId>
+                        <artifactId>frontend-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>generate-type-declaration</id>
                             </execution>
                         </executions>
                     </plugin>

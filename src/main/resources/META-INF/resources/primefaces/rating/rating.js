@@ -50,12 +50,12 @@ PrimeFaces.widget.Rating = PrimeFaces.widget.BaseWidget.extend({
      * @private
      */
     bindEvents: function() {
-        var _self = this;
+        var $this = this;
 
         this.stars.on("click", function() {
-            var value = _self.stars.index(this) + 1;   //index starts from zero
+            var value = $this.stars.index(this) + 1;   //index starts from zero
 
-            _self.setValue(value);
+            $this.setValue(value);
         });
 
         this.cancel.on("mouseenter", function() {
@@ -63,7 +63,7 @@ PrimeFaces.widget.Rating = PrimeFaces.widget.BaseWidget.extend({
         }).on("mouseleave", function() {
              $(this).removeClass('ui-rating-cancel-hover');
         }).on("click", function() {
-            _self.reset();
+            $this.reset();
         });
     },
 
@@ -89,30 +89,66 @@ PrimeFaces.widget.Rating = PrimeFaces.widget.BaseWidget.extend({
 
     /**
      * Sets the rating to the given value.
-     * @param {number} value New rating value to set (number of starts selected).
+     * @param {number | undefined | null} value New rating value to set (number of stars selected). Pass `undefined` or
+     * a value not greater thatn 0 to reset the value.
      */
     setValue: function(value) {
+        if(this.isDisabled() || this.isReadOnly()) {
+            return;
+        }
+
+        // check minimum and maximum
+        var newValue = parseInt(value);
+        if(isNaN(newValue) || newValue <= 0) {
+            this.reset();
+            return;
+        }
+        else if(newValue > this.stars.length) {
+            newValue = this.stars.length;
+        }
+
         //set hidden value
-        this.jqInput.val(value);
+        this.jqInput.val(newValue);
 
         //update visuals
         this.stars.removeClass('ui-rating-star-on');
-        for(var i = 0; i < value; i++) {
+        for(var i = 0; i < newValue; i++) {
             this.stars.eq(i).addClass('ui-rating-star-on');
         }
 
         //invoke callback
         if(this.cfg.onRate) {
-            this.cfg.onRate.call(this, value);
+            this.cfg.onRate.call(this, newValue);
         }
 
         this.callBehavior('rate');
     },
+    
+    /**
+     * Checks whether this widget is currently disabled. Whe disabled, the user cannot edit the value and it will not be
+     * sent to the server when the form is submitted.
+     * @return {boolean} `true` if this rating widget is disabled, `false` otherwise.
+     */
+    isDisabled: function() {
+        return this.jq.hasClass('ui-state-disabled');
+    },
+    
+    /**
+     * Checks whether this widget is currently read-only. When read-only, the user cannot edit the value, but the value
+     * will be sent to the server when the form is submitted.
+     * @return {boolean} `true` if this rating widget is read-only, `false` otherwise.
+     */
+    isReadOnly: function() {
+        return this.jqInput.is('[readonly]');
+    },
 
     /**
-     * Enables the rating so the user can give a rating.
+     * Enables this rating widget so the user can give a rating.
      */
     enable: function() {
+        if(!this.isDisabled() || this.isReadOnly()) {
+           return; 
+        }
         this.cfg.disabled = false;
 
         this.bindEvents();
@@ -121,9 +157,12 @@ PrimeFaces.widget.Rating = PrimeFaces.widget.BaseWidget.extend({
     },
 
     /**
-     * Disables the rating so the user cannot give a rating anymore.
+     * Disables this rating widget so the user cannot give a rating anymore.
      */
     disable: function() {
+        if(this.isDisabled()) {
+           return; 
+        }
         this.cfg.disabled = true;
 
         this.unbindEvents();

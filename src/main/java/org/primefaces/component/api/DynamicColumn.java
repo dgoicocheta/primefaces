@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2020 PrimeTek
+ * Copyright (c) 2009-2021 PrimeTek
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -216,6 +216,11 @@ public class DynamicColumn implements UIColumn {
     }
 
     @Override
+    public String getColumnKey(UIComponent parent, String rowIndex) {
+        return getColumnKey().replace(parent.getId() + ":" + rowIndex + ":", parent.getId() + ":");
+    }
+
+    @Override
     public String getWidth() {
         return columns.getWidth();
     }
@@ -251,8 +256,8 @@ public class DynamicColumn implements UIColumn {
     }
 
     @Override
-    public int getPriority() {
-        return columns.getPriority();
+    public int getResponsivePriority() {
+        return columns.getResponsivePriority();
     }
 
     @Override
@@ -328,4 +333,15 @@ public class DynamicColumn implements UIColumn {
     public boolean isDraggable() {
         return columns.isDraggable();
     }
+
+    @Override
+    public String getExportValue() {
+        return columns.getExportValue();
+    }
+
+    @Override
+    public int getDisplayPriority() {
+        return columns.getDisplayPriority();
+    }
+
 }

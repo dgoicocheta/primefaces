@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2020 PrimeTek
+ * Copyright (c) 2009-2021 PrimeTek
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -155,7 +155,7 @@ public abstract class CoreRenderer extends Renderer {
             boolean hasEventValue = (eventValue != null);
             boolean hasEventBehaviors = (eventBehaviors != null && !eventBehaviors.isEmpty());
 
-            if (domEvent.equals("onchange") && !hasEventBehaviors) {
+            if ("onchange".equals(domEvent) && !hasEventBehaviors) {
                 eventBehaviors = behaviors.get("valueChange");
                 hasEventBehaviors = (eventBehaviors != null && !eventBehaviors.isEmpty());
                 if (hasEventBehaviors) {
@@ -592,14 +592,6 @@ public abstract class CoreRenderer extends Renderer {
 
     protected void decodeBehaviors(FacesContext context, UIComponent component) {
         ComponentUtils.decodeBehaviors(context, component);
-    }
-
-    /**
-     * @deprecated Use {@link EscapeUtils}
-     */
-    @Deprecated
-    protected String escapeText(String text) {
-        return EscapeUtils.forJavaScript(text);
     }
 
     protected String getEventBehaviors(FacesContext context, ClientBehaviorHolder cbh, String event,

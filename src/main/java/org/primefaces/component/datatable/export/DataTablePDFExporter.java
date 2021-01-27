@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2009-2020 PrimeTek
+ * Copyright (c) 2009-2021 PrimeTek
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@ package org.primefaces.component.datatable.export;
 import java.awt.Color;
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 import javax.faces.component.UIComponent;
 import javax.faces.component.UIPanel;
@@ -33,12 +34,15 @@ import javax.faces.context.FacesContext;
 
 import org.primefaces.component.api.DynamicColumn;
 import org.primefaces.component.api.UIColumn;
+import org.primefaces.component.api.UITable;
+import org.primefaces.component.columngroup.ColumnGroup;
 import org.primefaces.component.datatable.DataTable;
 import org.primefaces.component.export.ExportConfiguration;
 import org.primefaces.component.export.ExporterOptions;
 import org.primefaces.component.export.PDFOptions;
 import org.primefaces.component.export.PDFOrientationType;
 import org.primefaces.util.ComponentUtils;
+import org.primefaces.util.Constants;
 import org.primefaces.util.LangUtils;
 
 import com.lowagie.text.*;
@@ -145,9 +149,11 @@ public class DataTablePDFExporter extends DataTableExporter {
             config.getOnTableRender().invoke(context.getELContext(), new Object[]{pdfTable, table});
         }
 
-        addTableFacets(context, table, pdfTable, "header");
-
-        addColumnFacets(table, pdfTable, ColumnType.HEADER);
+        addTableFacets(context, table, pdfTable, ColumnType.HEADER);
+        boolean headerGroup = addColumnGroup(table, pdfTable, ColumnType.HEADER);
+        if (!headerGroup) {
+            addColumnFacets(table, pdfTable, ColumnType.HEADER);
+        }
 
         if (config.isPageOnly()) {
             exportPageOnly(context, table, pdfTable);
@@ -159,20 +165,20 @@ public class DataTablePDFExporter extends DataTableExporter {
             exportAll(context, table, pdfTable);
         }
 
+        addColumnGroup(table, pdfTable, ColumnType.FOOTER);
         if (table.hasFooterColumn()) {
             addColumnFacets(table, pdfTable, ColumnType.FOOTER);
         }
-
-        addTableFacets(context, table, pdfTable, "footer");
+        addTableFacets(context, table, pdfTable, ColumnType.FOOTER);
 
         table.setRowIndex(-1);
 
         return pdfTable;
     }
 
-    protected void addTableFacets(FacesContext context, DataTable table, PdfPTable pdfTable, String facetType) {
+    protected void addTableFacets(FacesContext context, DataTable table, PdfPTable pdfTable, ColumnType columnType) {
         String facetText = null;
-        UIComponent facet = table.getFacet(facetType);
+        UIComponent facet = table.getFacet(columnType.facet());
         if (ComponentUtils.shouldRenderFacet(facet)) {
             if (facet instanceof UIPanel) {
                 for (UIComponent child : facet.getChildren()) {
@@ -220,7 +226,7 @@ public class DataTablePDFExporter extends DataTableExporter {
             }
 
             if (col.isRendered() && col.isExportable()) {
-                addColumnValue(pdfTable, col.getChildren(), cellFont, col);
+                addColumnValue(table, pdfTable, col.getChildren(), cellFont, col);
             }
         }
     }
@@ -249,37 +255,98 @@ public class DataTablePDFExporter extends DataTableExporter {
                 }
 
                 if (textValue != null) {
-                    addColumnValue(pdfTable, textValue);
+                    addColumnValue(pdfTable, textValue, 1, 1);
                 }
                 else if (ComponentUtils.shouldRenderFacet(facet)) {
                     addColumnValue(pdfTable, facet);
                 }
                 else {
-                    addColumnValue(pdfTable, "");
+                    addColumnValue(pdfTable, Constants.EMPTY_STRING, 1, 1);
                 }
             }
         }
     }
 
-    protected void addColumnValue(PdfPTable pdfTable, UIComponent component) {
-        String value = component == null ? "" : exportValue(FacesContext.getCurrentInstance(), component);
-        addColumnValue(pdfTable, value);
+    protected boolean addColumnGroup(DataTable table, PdfPTable pdfTable,  ColumnType columnType) {
+        ColumnGroup cg = table.getColumnGroup(columnType.facet());
+        if (cg == null || cg.getChildCount() == 0) {
+            return false;
+        }
+        for (UIComponent component : cg.getChildren()) {
+            if (!(component instanceof org.primefaces.component.row.Row)) {
+                continue;
+            }
+            org.primefaces.component.row.Row row = (org.primefaces.component.row.Row) component;
+            for (UIComponent rowComponent : row.getChildren()) {
+                if (!(rowComponent instanceof UIColumn)) {
+                    // most likely a ui:repeat which won't work here
+                    continue;
+                }
+                UIColumn column = (UIColumn) rowComponent;
+                if (column.isRendered() && column.isExportable()) {
+                    String textValue;
+                    switch (columnType) {
+                        case HEADER:
+                            textValue = (column.getExportHeaderValue() != null) ? column.getExportHeaderValue() : column.getHeaderText();
+                            break;
+
+                        case FOOTER:
+                            textValue = (column.getExportFooterValue() != null) ? column.getExportFooterValue() : column.getFooterText();
+                            break;
+
+                        default:
+                            textValue = Constants.EMPTY_STRING;
+                            break;
+                    }
+
+                    int rowSpan = column.getRowspan();
+                    int colSpan = column.getColspan();
+                    addColumnValue(pdfTable, textValue, rowSpan, colSpan);
+                }
+            }
+            pdfTable.completeRow();
+        }
+        return true;
     }
 
-    protected void addColumnValue(PdfPTable pdfTable, String value) {
+    protected void addColumnValue(PdfPTable pdfTable, UIComponent component) {
+        String value = component == null ? "" : exportValue(FacesContext.getCurrentInstance(), component);
+        addColumnValue(pdfTable, value, 1, 1);
+    }
+
+    protected PdfPCell addColumnValue(PdfPTable pdfTable, String value, int rowSpan, int colSpan) {
         PdfPCell cell = new PdfPCell(new Paragraph(value, facetFont));
         if (facetBgColor != null) {
             cell.setBackgroundColor(facetBgColor);
         }
+        if (rowSpan > 1) {
+            cell.setVerticalAlignment(Element.ALIGN_CENTER);
+            cell.setRowspan(rowSpan);
+
+        }
+        if (colSpan > 1) {
+            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            cell.setColspan(colSpan);
+        }
 
         pdfTable.addCell(cell);
+        return cell;
     }
 
-    protected void addColumnValue(PdfPTable pdfTable, List<UIComponent> components, Font font, UIColumn column) {
+    protected void addColumnValue(DataTable table, PdfPTable pdfTable, List<UIComponent> components, Font font, UIColumn column) {
         FacesContext context = FacesContext.getCurrentInstance();
 
-        if (column.getExportFunction() != null) {
+        if (LangUtils.isNotBlank(column.getExportValue())) {
+            PdfPCell cell = createCell(column, new Paragraph(column.getExportValue(), font));
+            pdfTable.addCell(cell);
+        }
+        else if (column.getExportFunction() != null) {
             PdfPCell cell = createCell(column, new Paragraph(exportColumnByFunction(context, column), font));
+            pdfTable.addCell(cell);
+        }
+        else if (LangUtils.isNotBlank(column.getField())) {
+            Object value = UITable.createValueExprFromVarField(context, table.getVar(), column.getField()).getValue(context.getELContext());
+            PdfPCell cell = createCell(column, new Paragraph(Objects.toString(value, Constants.EMPTY_STRING), font));
             pdfTable.addCell(cell);
         }
         else {
@@ -360,13 +427,13 @@ public class DataTablePDFExporter extends DataTableExporter {
 
     protected void setFontStyle(Font cellFont, String cellFontStyle) {
         if (cellFontStyle != null) {
-            if (cellFontStyle.equalsIgnoreCase("NORMAL")) {
+            if ("NORMAL".equalsIgnoreCase(cellFontStyle)) {
                 cellFontStyle = "" + Font.NORMAL;
             }
-            if (cellFontStyle.equalsIgnoreCase("BOLD")) {
+            if ("BOLD".equalsIgnoreCase(cellFontStyle)) {
                 cellFontStyle = "" + Font.BOLD;
             }
-            if (cellFontStyle.equalsIgnoreCase("ITALIC")) {
+            if ("ITALIC".equalsIgnoreCase(cellFontStyle)) {
                 cellFontStyle = "" + Font.ITALIC;
             }
 
@@ -383,12 +450,12 @@ public class DataTablePDFExporter extends DataTableExporter {
         facetFont = FontFactory.getFont(newFont, encoding, Font.DEFAULTSIZE, Font.BOLD);
     }
 
-    protected PdfPCell createCell(final UIColumn column, Phrase phrase) {
+    protected PdfPCell createCell(UIColumn column, Phrase phrase) {
         PdfPCell cell = new PdfPCell(phrase);
         return applyColumnAlignments(column, cell);
     }
 
-    protected PdfPCell applyColumnAlignments(final UIColumn column, final PdfPCell cell) {
+    protected PdfPCell applyColumnAlignments(UIColumn column, PdfPCell cell) {
         String[] styles = new String[] {column.getStyle(), column.getStyleClass()};
         if (LangUtils.containsIgnoreCase(styles, "right")) {
             cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
